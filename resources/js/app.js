@@ -50,42 +50,82 @@
             loadMusic: function () {
                 app.options.svg.element = SVG('music').size(app.options.svg.size * 2, app.options.svg.size);
 
+                var element = app.options.svg.element.path('M' + app.options.svg.size / 2 + ', ' + app.options.svg.size / 2 +
+                    ' m -75, 0 a 75,75 0 1,0 150,0 a 75,75 0 1,0 -150,0');
+                element.attr({'fill': 'none', 'stroke': '#8F9499', 'stroke-width': 100});
+
+
                 document.querySelector('input').onchange = function () {
                     app.options.sound = new Audio();
                     app.options.sound.src = app.decodeAudioData(this);
                 };
 
 
-                document.getElementById('play').addEventListener('click', function() {
+                document.getElementById('play').addEventListener('click', function () {
                     app.playSound();
                 });
 
-                document.getElementById('stop').addEventListener('click', function() {
+                document.getElementById('stop').addEventListener('click', function () {
                     app.stopSound();
                 });
             },
 
             fullTracking: function (buffer) {
-                var leftChannel = buffer.getChannelData(0),
-                    totalLength = leftChannel.length,
-                    radius = app.options.svg.size / 2,
-                    angleTotals = Math.PI * 2 / app.options.barsLength,
-                    eachBlock = Math.floor(totalLength / app.options.barsLength);
+                var leftChannel = buffer.getChannelData(0);
 
-                if(totalLength == 0) {
-
+                if (leftChannel.length > 0) {
+                    app.createCircleTracking(leftChannel, leftChannel.length);
+                } else {
+                    return false;
                 }
+            },
 
-                var groupSound = app.options.svg.element.group();
-                var masking = app.options.svg.element.circle(radius).fill({color: '#fff'});
+            backgroundFullTracking: function () {
+
+            },
+
+            createCircleTracking: function (leftChannel, leftChannelTotal) {
+                var radius = app.options.svg.size / 2 - 20;
+
+                var group = app.options.svg.element.group();
+                var masking = app.options.svg.element.circle(radius);
+
+                masking.attr({'fill': 'none', 'stroke': '#8F9499', 'stroke-width': 100});
                 masking.attr({cx: app.options.svg.size, cy: app.options.svg.size / 2});
                 masking.radius(radius);
 
-                groupSound.maskWith(masking);
+                var circleBars = app.barCircleTracking(leftChannel, leftChannelTotal, group, radius);
+
+                if(circleBars != false) {
+                    group.maskWith(masking);
+                }
+            },
+
+            createBarCircleTracking: function (widthElement, heightElement, x, y, angle, group, index, color) {
+                if (!widthElement || !heightElement || !angle || !group && typeof x == 'number' && typeof y == 'number') return false;
+
+                var element = app.options.svg.element.rect(widthElement, heightElement),
+                    backgroundColor = typeof color == 'string' && color != undefined ? color : '#222';
+
+                element.attr({fill: backgroundColor});
+
+                element.attr({x: 0, y: 0});
+                element.translate(x, y - heightElement / 2);
+                element.rotate(angle * (180 / Math.PI) + 90);
+                element.attr('height', 0).animate(10 * index).attr('height', heightElement);
+
+                if (typeof group == 'object') {
+                    group.add(element);
+                }
+            },
+
+            barCircleTracking: function (leftChannel, leftChannelTotal, group, radius) {
+                var angleTotals = Math.PI * 2 / app.options.barsLength,
+                    eachBlock = Math.floor(leftChannelTotal / app.options.barsLength);
 
                 for (var i = 0; i < app.options.barsLength; i++) {
                     var audioBuffKey = Math.floor(eachBlock * i),
-                        heightElement = leftChannel[audioBuffKey] < 0 ? leftChannel[audioBuffKey] * -1 : leftChannel[audioBuffKey] * 100,
+                        heightElement = leftChannel[audioBuffKey] < 0 ? leftChannel[audioBuffKey] * -1 : leftChannel[audioBuffKey] * 200,
                         angle = i * angleTotals;
 
                     heightElement = app.maxMin(10, heightElement, 140);
@@ -93,25 +133,12 @@
                     var x = Math.cos(angle) * radius + app.options.svg.size,
                         y = Math.sin(angle) * radius + app.options.svg.size / 2;
 
-                    var element = app.options.svg.element.rect(3, heightElement);
-                    element.attr({fill: 'red'});
-
-                    groupSound.add(element);
-
-                    element.attr({x: 0, y: 0});
-                    element.translate(x, y - heightElement / 2);
-                    element.rotate(angle * (180 / Math.PI) + 90);
-                    element.attr('height', 0).animate(10 * i).attr('height', heightElement);
+                    app.createBarCircleTracking(3, heightElement, x, y, angle, group, '#8F9499');
                 }
+
+                return group;
             },
 
-            createFullTracking: function () {
-
-            },
-
-            barFullTracking: function () {
-
-            },
 
             /**
              * max min
@@ -128,7 +155,7 @@
              * play sound
              */
             playSound: function () {
-                if(app.options.sound && typeof app.options.sound == 'object')
+                if (app.options.sound && typeof app.options.sound == 'object')
                     app.options.sound.play();
             },
 
@@ -136,7 +163,7 @@
              * stop sound
              */
             stopSound: function () {
-                if(app.options.sound && typeof app.options.sound == 'object')
+                if (app.options.sound && typeof app.options.sound == 'object')
                     app.options.sound.pause();
             },
 
