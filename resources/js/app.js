@@ -1,4 +1,4 @@
-(function () {
+/*(function () {
     var app,
         audioAPI = {
             analyser: null,
@@ -12,6 +12,12 @@
                 barsLength: 300,
                 sound: null
             },
+
+            animateFrame: undefined,
+
+            requestAnimationFrame: undefined,
+
+            cancelAnimationFrame: undefined,
 
             sound: null,
 
@@ -47,7 +53,7 @@
             },
 
             barCircleTrackingCurrentTime: function (currentTime) {
-                if(!currentTime) return false;
+                if (!currentTime) return false;
 
                 console.log(currentTime, app.options.sound.duration / app.options.barsLength);
             },
@@ -84,16 +90,11 @@
 
                 var circleBars = app.barCircleTrackingBackground(leftChannel, leftChannelTotal, group, radius - 100);
 
-                if(circleBars != false) {
+                if (circleBars != false) {
                     group.maskWith(masking);
                 }
             },
 
-            /**
-             * decode audio data
-             * @param file
-             * @returns {*}
-             */
             decodeAudioData: function (file) {
                 var fileReader = new FileReader;
 
@@ -115,12 +116,10 @@
             },
 
             frameLooper: function () {
-                window.requestAnimationFrame(app.frameLooper);
+                app.animateFrame = app.requestAnimationFrame(app.frameLooper);
 
                 var fbc_array = new Uint8Array(app.analyser.frequencyBinCount);
                 app.analyser.getByteFrequencyData(fbc_array);
-
-                console.log(fbc_array);
 
                 app.barCircleTrackingCurrentTime(app.options.sound.currentTime);
             },
@@ -129,7 +128,7 @@
                 var leftChannel = buffer.getChannelData(0);
 
                 if (leftChannel.length > 0) {
-                    if(app.options.svg.element != null) {
+                    if (app.options.svg.element != null) {
                         app.options.svg.element.remove();
                     }
 
@@ -143,7 +142,6 @@
             },
 
 
-
             loadMusic: function () {
                 document.querySelector('input').onchange = function () {
                     app.options.sound = new Audio();
@@ -151,69 +149,136 @@
 
                     app.sound = app.audioContext.createMediaElementSource(app.options.sound);
                     app.analyser = app.audioContext.createAnalyser();
-
-                    app.sound.connect(app.analyser);
-                    app.analyser.connect(app.audioContext.destination);
-
-                    app.frameLooper();
                 };
-
-                document.getElementById('play').addEventListener('click', function () {
-                    app.playSound();
-                });
-
-                document.getElementById('stop').addEventListener('click', function () {
-                    app.stopSound();
-                });
             },
 
-
-            /**
-             * max min
-             * @param min
-             * @param max
-             * @param number
-             * @returns {number}
-             */
             maxMin: function (min, max, number) {
                 return Math.max(min, Math.min(number, max));
             },
+        };
+})();
+*/
 
-            /**
-             * play sound
-             */
-            playSound: function () {
-                if (app.options.sound && typeof app.options.sound == 'object')
-                    app.options.sound.play();
-            },
+'use strict';
 
-            /**
-             * stop sound
-             */
-            stopSound: function () {
-                if (app.options.sound && typeof app.options.sound == 'object')
-                    app.options.sound.pause();
-            },
+var animateRequestFrame,
+    audioAPI = function () {
 
-            /**
-             * context audio api
-             * @returns {boolean}
-             */
-            validateAudioAPI: function () {
-                window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.msAudioContext;
-
-                try {
-                    app.audioContext = new AudioContext();
-                    return true;
-                } catch (e) {
-                    console.log('!Your browser does not support AudioContext', e);
-                }
-
-                return false;
-            }
+        this.properties = {
+            analyser: undefined,
+            audioContext: undefined,
+            sound: undefined
         };
 
+        this.sound = undefined;
 
-    audioAPI.init();
-})();
+        this.init = function () {
+            console.log('init');
+            if(this.supportRequestAnimateFrame() || this.supportAudioContext()) {
+                this.properties.audioContext = new AudioContext();
 
+                this.eventsBind();
+            } else {
+                console.log('Not Support AnimateFrame');
+            }
+        }
+
+        this.animateFrame = function () {
+            console.log('aqui, no se por que');
+            animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
+        }
+
+        this.bufferTracking = function (data) {
+            console.log(data);
+        }
+
+        this.decodeAudioData = function (file) {
+            var fileReader = new FileReader;
+
+            fileReader.onload = function (event) {
+                var arrayBuffer = event.target.result;
+
+                this.properties.audioContext.decodeAudioData(arrayBuffer,
+                    function (buffer) {
+                        this.bufferTracking(buffer);
+                    }.bind(this), function (error) {
+                        console.log(error);
+                        return false;
+                    }.bind(this));
+            }.bind(this);
+
+            fileReader.readAsArrayBuffer(file.files[0]);
+
+            return URL.createObjectURL(file.files[0]);
+        }
+
+        this.eventsBind = function () {
+            document.getElementById('play').addEventListener('click', function () {
+                this.playSound();
+            }.bind(this), false);
+
+            document.getElementById('stop').addEventListener('click', function () {
+                this.stopSound();
+            }.bind(this), false);
+
+            document.querySelector('input').addEventListener('change', function (event) {
+                this.loadSound(event);
+            }.bind(this), false);
+        }
+
+        this.loadSound = function (event) {
+            this.properties.sound = new Audio();
+            this.properties.sound.src = this.decodeAudioData(event.target);
+
+            this.sound = this.properties.audioContext.createMediaElementSource(this.properties.sound);
+            this.properties.analyser = this.properties.audioContext.createAnalyser();
+        }
+
+        this.playSound = function () {
+            if (this.properties.sound && typeof this.properties.sound == 'object') {
+
+                this.properties.sound.play();
+                this.sound.connect(this.properties.analyser);
+                this.properties.analyser.connect(this.properties.audioContext.destination);
+
+                animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
+            }
+        }
+
+        this.stopSound = function () {
+            if (this.properties.sound && typeof this.properties.sound == 'object') {
+
+                this.properties.sound.pause();
+                this.sound.disconnect(this.properties.analyser);
+                this.properties.analyser.disconnect(this.properties.audioContext.destination);
+
+                window.cancelAnimationFrame(animateRequestFrame);
+            }
+        }
+
+        /**
+         * support audio context
+         * @returns {boolean}
+         */
+        this.supportAudioContext = function () {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.msAudioContext;
+
+            return !window.AudioContext ? false : true;
+        }
+
+        /**
+         * support request animate
+         * @returns {boolean}
+         */
+        this.supportRequestAnimateFrame = function () {
+            window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame
+                || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+
+            window.cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame;
+
+            return !window.requestAnimationFrame || !window.cancelAnimationFrame ? false : true;
+        }
+    }
+
+var app = new audioAPI();
+app.init();
