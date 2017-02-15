@@ -53,7 +53,25 @@ var animateRequestFrame,
         };
 
         this.animateVisualyzer = function (frequency) {
-            //console.log(frequency);
+            var totalItems = Math.PI * 2 / this.properties.svg.visualizerCircles.length;
+
+            //frequency
+            for (var i = 0; i < this.properties.svg.visualizerCircles.length; i++) {
+                if(i != 0) {
+                    var angle = i * totalItems,
+                        cx = Math.sin(angle) * 100,
+                        cy = Math.cos(angle) * 100;
+
+                    var x = Math.sin(frequency[i] / 2) - Math.floor(Math.random() * 5);
+                    var y = Math.cos(frequency[i] / 2) - Math.floor(Math.random() * 5);
+                    //var y = Math.cos(frequency[i] / 2) - Math.floor(Math.random() * 5); secundary
+
+                    var height = frequency[i] / 1.8;
+                    //var height = Math.floor(Math.random() * this.maxMinNumber(80, frequency[i] / 1.8, frequency[i] / 1.8)); secundary
+
+                    this.properties.svg.visualizerCircles[i].attr({r: height, cx: cx - x, cy: cy - y});
+                }
+            }
         };
 
         this.barCircleTrack = function (channel, total, group, radius, color) {
@@ -126,7 +144,7 @@ var animateRequestFrame,
 
             masking.attr({
                 'fill': 'none',
-                'stroke': 'red',
+                'stroke': '#FFF',
                 'stroke-width': 40,
                 cx: this.properties.size + 1,
                 cy: this.properties.size / 2
@@ -245,23 +263,43 @@ var animateRequestFrame,
 
         this.visualizer = function () {
             if (this.properties.svg.visualizer == null) {
+                var mask = this.properties.svg.element.circle(515);
+                mask.attr({
+                    'fill': 'none',
+                    'stroke': '#FFF',
+                    'stroke-width': 100,
+                    cx: 0,
+                    cy: 0
+                });
+
                 this.properties.svg.visualizer = this.properties.svg.element.group();
-                this.properties.svg.visualizer.translate(this.properties.size / 2, this.properties.size / 2);
+                this.properties.svg.visualizer
+                    .style({filter: 'url("#fancy-goo")'})
+                    .translate(this.properties.size / 2, this.properties.size / 2);
 
-                var totalItems = Math.PI * 2 / 4;
+                var totalItems = Math.PI * 2 / 9;
 
-                for (var i = 0; i < 6; i++) {
-                    var angle = i * totalItems,
-                        x = Math.sin(angle) * 200,
-                        y = Math.cos(angle) * 200;
+                for (var i = 0; i < 10; i++) {
+                    if(i != 0) {
+                        var angle = (i * totalItems) * Math.floor(Math.PI * 180 / Math.random()),
+                            x = Math.sin(angle) * this.properties.size / 3,
+                            y = Math.cos(angle) * this.properties.size / 3;
 
-                    var circle = this.properties.svg.element.circle(100);
-                    circle.radius(100).attr({fill: 'red', cx: x, cy: y});
+                        var circle = this.properties.svg.element.circle(this.properties.size / 2);
+                        circle.radius(100).attr({fill: 'red', cx: x, cy: y});
 
-                    this.properties.svg.visualizerCircles.push(circle);
+                        this.properties.svg.visualizerCircles.push(circle);
+                        this.properties.svg.visualizer.add(circle);
+                    } else {
+                        var circle = this.properties.svg.element.circle(100);
+                        circle.radius(210).attr({fill: 'red', cx: 0, cy: 0});
 
-                    this.properties.svg.visualizer.add(circle);
+                        this.properties.svg.visualizerCircles.push(circle);
+                        this.properties.svg.visualizer.add(circle);
+                    }
                 }
+
+                this.properties.svg.visualizer.maskWith(mask);
             } else {
                 this.visualizerDestroy();
             }
