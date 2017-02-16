@@ -10,10 +10,10 @@ var gulp = require('gulp'),
 gulp.task('js', function () {
     return gulp.src([
         './bower_components/svg.js/dist/svg.js',
+        './bower_components/moment/min/moment.min.js',
 
-
-        'resources/js/**.js',
-        'resources/js/*/**.js',
+        './resources/js/**.js',
+        './resources/js/*/**.js',
     ])
         .pipe(concat('app.js'))
         .pipe(uglify())

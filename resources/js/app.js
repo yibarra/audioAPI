@@ -10,18 +10,22 @@ var animateRequestFrame,
             sound: undefined,
             svg: {
                 currentPosition: null,
+                currentTime: null,
                 element: null,
                 visualizer: null,
-                visualizerCircles: []
+                visualizerCircles: [],
+                visualizerTotals: 8
             },
             size: 600,
-            totalBars: 336
+            totalBars: 386
         };
 
         this.sound = undefined;
 
+        /**
+         * init
+         */
         this.init = function () {
-            console.log('init');
             if (this.supportRequestAnimateFrame() || this.supportAudioContext()) {
                 this.properties.audioContext = new AudioContext();
 
@@ -31,6 +35,9 @@ var animateRequestFrame,
             }
         };
 
+        /**
+         * animate frame rate method
+         */
         this.animateFrame = function () {
             var fbc_array = new Uint8Array(this.properties.analyser.frequencyBinCount);
             this.properties.analyser.getByteFrequencyData(fbc_array);
@@ -43,40 +50,48 @@ var animateRequestFrame,
             animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
         };
 
+
         this.animateCurrentSound = function (percent) {
             if (!percent) return false;
 
             var currentPosition = (percent / 100) * (this.properties.size * 2);
 
-            if (currentPosition != null)
+            if (currentPosition != null) {
                 this.properties.svg.currentPosition.attr({'stroke-dashoffset': (this.properties.size * 2) - currentPosition});
+                this.labelTimesAudio();
+
+                //stop
+                if (currentPosition == 100)
+                    this.stopSound();
+            }
         };
 
         this.animateVisualyzer = function (frequency) {
             var totalItems = Math.PI * 2 / this.properties.svg.visualizerCircles.length;
 
-            //frequency
             for (var i = 0; i < this.properties.svg.visualizerCircles.length; i++) {
-                if(i != 0) {
+                if (i != 0) {
                     var angle = i * totalItems,
-                        cx = Math.sin(angle) * 100,
-                        cy = Math.cos(angle) * 100;
+                        cx = Math.sin(angle) * 110,
+                        cy = Math.cos(angle) * 110;
 
-                    var x = Math.sin(frequency[i] / 2) - Math.floor(Math.random() * 5);
-                    var y = Math.cos(frequency[i] / 2) - Math.floor(Math.random() * 5);
+                    var x = Math.sin(frequency[i] / 2),
+                        y = Math.cos(frequency[i] / 2),
+                        radiusX = this.maxMinNumber(0, frequency[i] / 2 - Math.floor(Math.random() * 20), frequency[i] / 2 - Math.floor(Math.random() * 20)),
+                        radiusY = frequency[i] / 2;
+
                     //var y = Math.cos(frequency[i] / 2) - Math.floor(Math.random() * 5); secundary
 
-                    var height = frequency[i] / 1.8;
                     //var height = Math.floor(Math.random() * this.maxMinNumber(80, frequency[i] / 1.8, frequency[i] / 1.8)); secundary
 
-                    this.properties.svg.visualizerCircles[i].attr({r: height, cx: cx - x, cy: cy - y});
+                    this.properties.svg.visualizerCircles[i].attr({rx: radiusX, ry: radiusY, cx: cx - x, cy: cy - y});
                 }
             }
         };
 
         this.barCircleTrack = function (channel, total, group, radius, color) {
             var angleTotals = Math.PI * 2 / this.properties.totalBars,
-                eachBlock = Math.floor(total / this.properties.totalBars);
+                eachBlock = total / this.properties.totalBars;
 
             for (var i = 0; i < this.properties.totalBars; i++) {
                 var audioBuffKey = Math.floor(eachBlock * i),
@@ -103,13 +118,15 @@ var animateRequestFrame,
                 this.properties.svg.element = SVG('music').size(this.properties.size, this.properties.size);
 
                 //create circle tracking
-                this.createCircleTracking(leftChannel, leftChannel.length, '#EBE');
-                this.properties.svg.currentPosition = this.createCircleTracking(leftChannel, leftChannel.length, '#010');
+                this.createCircleTracking(leftChannel, leftChannel.length, '#e7e7e7', true);
+                this.properties.svg.currentPosition = this.createCircleTracking(leftChannel, leftChannel.length, '#4e4e4f');
 
                 this.properties.svg.currentPosition.attr({
                     'stroke-dasharray': this.properties.size * 2,
                     'stroke-dashoffset': this.properties.size * 2
                 });
+
+                return true;
             } else {
                 return false;
             }
@@ -118,18 +135,18 @@ var animateRequestFrame,
         this.createBarTracking = function (width, height, x, y, angle, group, index, color) {
             if (!width || !height || !angle || !group && typeof x == 'number' && typeof y == 'number') return false;
 
-            console.log(color);
-            var element = this.properties.svg.element.rect(width, height);
+            var rect = this.properties.svg.element.rect(width, height);
 
-            element.attr({fill: color});
+            rect.attr({fill: color});
 
-            element.attr({x: 0, y: 0});
-            element.translate(x, y - height / 2);
-            element.rotate(angle * (180 / Math.PI) + 90);
-            element.attr('height', 0).animate(10 * index).attr('height', height);
+            rect.attr({x: 0, y: 0, index: index})
+                .translate(x, y - height / 2)
+                .rotate(angle * (180 / Math.PI) + 90);
+
+            rect.attr('height', 0).animate(10 * index).attr('height', height);
 
             if (typeof group == 'object') {
-                group.add(element);
+                group.add(rect);
             }
         };
 
@@ -153,6 +170,13 @@ var animateRequestFrame,
             var circleBars = this.barCircleTrack(channel, total, group, radius - 100, color);
 
             if (circleBars != false) {
+
+                group.on('click', function (event) {
+                    if (typeof event.target.getAttribute('index') != 'number') {
+                        this.selectTime(event.target.getAttribute('index'));
+                    }
+                }, this);
+
                 group.maskWith(masking);
 
                 return masking;
@@ -167,14 +191,13 @@ var animateRequestFrame,
 
                 this.properties.audioContext.decodeAudioData(arrayBuffer,
                     function (buffer) {
-                        if (!buffer) {
+                        if (this.bufferTracking(buffer) && buffer) {
+                            this.infoAudio(file.files[0]);
+                        } else {
                             console.log('error');
-                            return false;
                         }
-
-                        this.bufferTracking(buffer);
                     }.bind(this), function (error) {
-                        console.log(error);
+                        console.log('error', error);
                         return false;
                     }.bind(this));
             }.bind(this);
@@ -196,6 +219,50 @@ var animateRequestFrame,
             document.querySelector('input').addEventListener('change', function (event) {
                 this.loadSound(event);
             }.bind(this), false);
+        };
+
+        /**
+         * get time in hours : minutes : seconds
+         * @param seconds
+         * @returns {*}
+         */
+        this.getTime = function (seconds) {
+            if (!seconds) return '0:00';
+
+            var duration = moment.duration(seconds, 'seconds'),
+                seconds = duration.seconds() < 10 ? '0' + duration.seconds() : duration.seconds(),
+                totalTime = '';
+
+            if (duration.hours() > 0) {
+                totalTime = duration.hours() + ":";
+            }
+
+            return totalTime + duration.minutes() + ":" + seconds;
+        };
+
+        this.infoAudio = function (file) {
+            if (file) {
+                var name = this.properties.svg.element.text(file.name),
+                    type = this.properties.svg.element.text(file.type);
+
+                name.attr({x: this.properties.size / 2, y: 10});
+                type.attr({x: this.properties.size / 2, y: 40});
+
+                this.labelTimesAudio();
+            }
+        };
+
+        /**
+         * label time audio
+         */
+        this.labelTimesAudio = function () {
+            var current = this.getTime(this.properties.sound.currentTime),
+                totalTime = this.getTime(this.properties.sound.duration);
+
+            if (this.properties.svg.currentTime != null)
+                this.properties.svg.currentTime.remove();
+
+            this.properties.svg.currentTime = this.properties.svg.element.text(current + ' - ' + totalTime);
         };
 
         this.maxMinNumber = function (min, max, number) {
@@ -223,6 +290,17 @@ var animateRequestFrame,
 
                 animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
             }
+        };
+
+        this.selectTime = function (index) {
+            if (!index) return false;
+
+            var percent = Math.floor((index * (180 / Math.PI) / 360) * 100),
+                time = (percent / 100) * this.properties.sound.duration;
+
+            console.log(percent.toPrecision(6), time.toPrecision(6), this.properties.sound.duration);
+
+            this.properties.sound.currentTime = time.toPrecision(6);
         };
 
         this.stopSound = function () {
@@ -261,6 +339,7 @@ var animateRequestFrame,
             return !window.requestAnimationFrame || !window.cancelAnimationFrame ? false : true;
         };
 
+
         this.visualizer = function () {
             if (this.properties.svg.visualizer == null) {
                 var mask = this.properties.svg.element.circle(515);
@@ -277,25 +356,25 @@ var animateRequestFrame,
                     .style({filter: 'url("#fancy-goo")'})
                     .translate(this.properties.size / 2, this.properties.size / 2);
 
-                var totalItems = Math.PI * 2 / 9;
+                var totalItemsAngle = Math.PI * 2 / this.properties.svg.visualizerTotals;
 
-                for (var i = 0; i < 10; i++) {
-                    if(i != 0) {
-                        var angle = (i * totalItems) * Math.floor(Math.PI * 180 / Math.random()),
+                for (var i = 0; i < this.properties.svg.visualizerTotals; i++) {
+                    if (i != 0) {
+                        var angle = (i * totalItemsAngle) * Math.floor(Math.PI * 180 / Math.random()),
                             x = Math.sin(angle) * this.properties.size / 3,
                             y = Math.cos(angle) * this.properties.size / 3;
 
-                        var circle = this.properties.svg.element.circle(this.properties.size / 2);
-                        circle.radius(100).attr({fill: 'red', cx: x, cy: y});
+                        var ellipse = this.properties.svg.element.ellipse(100, 100);
+                        ellipse.radius(100, 100).attr({fill: '#989ca6', cx: x, cy: y});
 
-                        this.properties.svg.visualizerCircles.push(circle);
-                        this.properties.svg.visualizer.add(circle);
+                        this.properties.svg.visualizerCircles.push(ellipse);
+                        this.properties.svg.visualizer.add(ellipse);
                     } else {
-                        var circle = this.properties.svg.element.circle(100);
-                        circle.radius(210).attr({fill: 'red', cx: 0, cy: 0});
+                        var ellipse = this.properties.svg.element.ellipse(100, 100);
+                        ellipse.radius(210, 210).attr({fill: '#989ca6', cx: 0, cy: 0});
 
-                        this.properties.svg.visualizerCircles.push(circle);
-                        this.properties.svg.visualizer.add(circle);
+                        this.properties.svg.visualizerCircles.push(ellipse);
+                        this.properties.svg.visualizer.add(ellipse);
                     }
                 }
 
