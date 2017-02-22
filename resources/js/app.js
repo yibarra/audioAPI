@@ -12,9 +12,13 @@ var animateRequestFrame,
                 currentPosition: null,
                 currentTime: null,
                 element: null,
-                visualizer: null,
+                visualizer: {
+                    parent: null,
+                    elements: [],
+                    colors: ['#d6ceed', '#f9ebda', '#d6b5a5', '#a69ca5']
+                },
                 visualizerCircles: [],
-                visualizerTotals: 8
+                visualizerTotalBars: 24
             },
             size: 600,
             totalBars: 386
@@ -57,7 +61,7 @@ var animateRequestFrame,
             var currentPosition = (percent / 100) * (this.properties.size * 2);
 
             if (currentPosition != null) {
-                this.properties.svg.currentPosition.attr({'stroke-dashoffset': (this.properties.size * 2) - currentPosition});
+                this.properties.svg.currentPosition.attr({'stroke-dashoffset': currentPosition.toFixed(1)});
                 this.labelTimesAudio();
 
                 //stop
@@ -67,24 +71,33 @@ var animateRequestFrame,
         };
 
         this.animateVisualyzer = function (frequency) {
-            var totalItems = Math.PI * 2 / this.properties.svg.visualizerCircles.length;
+            var totalItems = Math.PI * 2 / this.properties.svg.visualizerTotalBars;
 
-            for (var i = 0; i < this.properties.svg.visualizerCircles.length; i++) {
-                if (i != 0) {
-                    var angle = i * totalItems,
-                        cx = Math.sin(angle) * 110,
-                        cy = Math.cos(angle) * 110;
+            for (var k = 0; k < this.properties.svg.visualizer.elements.length; k++) {
+                if (k == 0) this.properties.svg.visualizer.elements[k].element.rotate(3);
+                if (k == 1) this.properties.svg.visualizer.elements[k].element.rotate(-3);
 
-                    var x = Math.sin(frequency[i] / 2),
-                        y = Math.cos(frequency[i] / 2),
-                        radiusX = this.maxMinNumber(0, frequency[i] / 2 - Math.floor(Math.random() * 20), frequency[i] / 2 - Math.floor(Math.random() * 20)),
-                        radiusY = frequency[i] / 2;
+                for (var i = 0; i < this.properties.svg.visualizer.elements[k].circles.length; i++) {
+                    if (i != 0) {
+                        var angle = i * totalItems,
+                            cx = Math.sin(angle) * 110,
+                            cy = Math.cos(angle) * 110;
 
-                    //var y = Math.cos(frequency[i] / 2) - Math.floor(Math.random() * 5); secundary
+                        var x = Math.sin(frequency[i] / 2),
+                            y = Math.cos(frequency[i] / 2),
+                            radiusX = this.maxMinNumber(0, frequency[i] / 2 - Math.floor(Math.random() * 20), frequency[i] / 2 - Math.floor(Math.random() * 20)),
+                            radiusY = frequency[i] / 2;
 
-                    //var height = Math.floor(Math.random() * this.maxMinNumber(80, frequency[i] / 1.8, frequency[i] / 1.8)); secundary
+                        if(k == 0 || k == 1)
+                            this.properties.svg.visualizer.elements[k].circles[i].animate(100);
 
-                    this.properties.svg.visualizerCircles[i].attr({rx: radiusX, ry: radiusY, cx: cx - x, cy: cy - y});
+                        this.properties.svg.visualizer.elements[k].circles[i].attr({
+                            rx: radiusX,
+                            ry: radiusY,
+                            cx: cx - x,
+                            cy: cy - y
+                        });
+                    }
                 }
             }
         };
@@ -119,12 +132,14 @@ var animateRequestFrame,
 
                 //create circle tracking
                 this.createCircleTracking(leftChannel, leftChannel.length, '#e7e7e7', true);
+
+                //current position
                 this.properties.svg.currentPosition = this.createCircleTracking(leftChannel, leftChannel.length, '#4e4e4f');
 
                 this.properties.svg.currentPosition.attr({
                     'stroke-dasharray': this.properties.size * 2,
                     'stroke-dashoffset': this.properties.size * 2
-                });
+                }).scale(1, -1);
 
                 return true;
             } else {
@@ -159,18 +174,9 @@ var animateRequestFrame,
 
             group.rotate(-90, (this.properties.size / 2) + (radius / 2), (this.properties.size / 2) + (radius / 2));
 
-            masking.attr({
-                'fill': 'none',
-                'stroke': '#FFF',
-                'stroke-width': 40,
-                cx: this.properties.size + 1,
-                cy: this.properties.size / 2
-            });
+            masking.attr({ 'fill': 'none', 'stroke': '#FFF', 'stroke-width': 40, cx: this.properties.size + 1, cy: this.properties.size / 2});
 
-            var circleBars = this.barCircleTrack(channel, total, group, radius - 100, color);
-
-            if (circleBars != false) {
-
+            if (this.barCircleTrack(channel, total, group, radius - 100, color) != false) {
                 group.on('click', function (event) {
                     if (typeof event.target.getAttribute('index') != 'number') {
                         this.selectTime(event.target.getAttribute('index'));
@@ -295,12 +301,14 @@ var animateRequestFrame,
         this.selectTime = function (index) {
             if (!index) return false;
 
-            var percent = Math.floor((index * (180 / Math.PI) / 360) * 100),
+            var percent = (index / this.properties.totalBars) * 100,
                 time = (percent / 100) * this.properties.sound.duration;
 
-            console.log(percent.toPrecision(6), time.toPrecision(6), this.properties.sound.duration);
-
             this.properties.sound.currentTime = time.toPrecision(6);
+
+            if(percent < 100 && percent > 0) {
+                this.playSound();
+            }
         };
 
         this.stopSound = function () {
@@ -321,7 +329,7 @@ var animateRequestFrame,
          * @returns {boolean}
          */
         this.supportAudioContext = function () {
-            window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.msAudioContext;
+            window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.msAudioContext || false;
 
             return !window.AudioContext ? false : true;
         };
@@ -332,7 +340,7 @@ var animateRequestFrame,
          */
         this.supportRequestAnimateFrame = function () {
             window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame
-                || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+                || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame || false;
 
             window.cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame;
 
@@ -341,7 +349,7 @@ var animateRequestFrame,
 
 
         this.visualizer = function () {
-            if (this.properties.svg.visualizer == null) {
+            if (this.properties.svg.visualizer.parent == null) {
                 var mask = this.properties.svg.element.circle(515);
                 mask.attr({
                     'fill': 'none',
@@ -351,44 +359,65 @@ var animateRequestFrame,
                     cy: 0
                 });
 
-                this.properties.svg.visualizer = this.properties.svg.element.group();
-                this.properties.svg.visualizer
-                    .style({filter: 'url("#fancy-goo")'})
+                this.properties.svg.visualizer.parent = this.properties.svg.element.group();
+
+                this.properties.svg.visualizer.parent
+                    .rotate(90)
                     .translate(this.properties.size / 2, this.properties.size / 2);
 
-                var totalItemsAngle = Math.PI * 2 / this.properties.svg.visualizerTotals;
+                for (var k = 0; k < this.properties.svg.visualizer.colors.length; k++) {
+                    var visualizer = this.properties.svg.element.group(),
+                        element = {
+                            element: visualizer,
+                            circles: []
+                        };
 
-                for (var i = 0; i < this.properties.svg.visualizerTotals; i++) {
-                    if (i != 0) {
-                        var angle = (i * totalItemsAngle) * Math.floor(Math.PI * 180 / Math.random()),
-                            x = Math.sin(angle) * this.properties.size / 3,
-                            y = Math.cos(angle) * this.properties.size / 3;
+                    visualizer.style({filter: 'url("#fancy-goo")'});
 
-                        var ellipse = this.properties.svg.element.ellipse(100, 100);
-                        ellipse.radius(100, 100).attr({fill: '#989ca6', cx: x, cy: y});
+                    for (var i = 0; i < this.properties.svg.visualizerTotalBars; i++) {
+                        if (i != 0) {
+                            var angle = (i * (Math.PI * 2 / this.properties.svg.visualizerTotalBars)) * Math.floor(Math.PI * 180 / Math.random()),
+                                x = Math.sin(angle) * this.properties.size / 3,
+                                y = Math.cos(angle) * this.properties.size / 3;
 
-                        this.properties.svg.visualizerCircles.push(ellipse);
-                        this.properties.svg.visualizer.add(ellipse);
-                    } else {
-                        var ellipse = this.properties.svg.element.ellipse(100, 100);
-                        ellipse.radius(210, 210).attr({fill: '#989ca6', cx: 0, cy: 0});
+                            var ellipse = this.properties.svg.element.ellipse(100, 100);
+                            ellipse.radius(100, 100).attr({
+                                fill: this.properties.svg.visualizer.colors[k],
+                                cx: x,
+                                cy: y
+                            });
 
-                        this.properties.svg.visualizerCircles.push(ellipse);
-                        this.properties.svg.visualizer.add(ellipse);
+                            visualizer.add(ellipse);
+                            element.circles.push(ellipse);
+                        } else {
+                            var ellipse = this.properties.svg.element.ellipse(100, 100);
+                            ellipse.radius(210, 210).attr({
+                                fill: this.properties.svg.visualizer.colors[k],
+                                cx: 0,
+                                cy: 0
+                            });
+
+                            visualizer.add(ellipse);
+                            element.circles.push(ellipse);
+                        }
                     }
-                }
 
-                this.properties.svg.visualizer.maskWith(mask);
+                    this.properties.svg.visualizer.parent.add(visualizer);
+                    this.properties.svg.visualizer.parent.maskWith(mask);
+
+                    this.properties.svg.visualizer.elements.push(element);
+                }
             } else {
                 this.visualizerDestroy();
             }
         };
 
         this.visualizerDestroy = function () {
-            if (this.properties.svg.visualizer != null) {
-                this.properties.svg.visualizer.remove();
+            if (this.properties.svg.visualizer.parent != null) {
+                this.properties.svg.visualizer.parent.remove();
 
-                this.properties.svg.visualizer = null;
+                this.properties.svg.visualizer.parent = null;
+                this.properties.svg.visualizer.elements = [];
                 this.properties.svg.visualizerCircles = [];
             }
         };
