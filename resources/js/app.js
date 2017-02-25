@@ -6,19 +6,25 @@ var animateRequestFrame,
         this.properties = {
             analyser: undefined,
             audioContext: undefined,
+            buffer: null,
             barWidth: 2,
             sound: undefined,
             svg: {
+                controls: null,
                 currentPosition: null,
                 currentTime: null,
                 element: null,
+                iconPlay: null,
+                iconPause: null,
+                groupControls: null,
+                textInfo: null,
                 visualizer: {
                     parent: null,
                     elements: [],
-                    colors: ['#d6ceed', '#f9ebda', '#d6b5a5', '#a69ca5']
+                    colors: ['#b3eeed', '#88ddc5', '#6d958f', '#2da6af']
                 },
                 visualizerCircles: [],
-                visualizerTotalBars: 24
+                visualizerTotalBars: 28
             },
             size: 600,
             totalBars: 386
@@ -48,26 +54,67 @@ var animateRequestFrame,
 
             var percentSoundTime = (this.properties.sound.currentTime / this.properties.sound.duration) * 100;
 
-            this.animateCurrentSound(percentSoundTime);
-            this.animateVisualyzer(fbc_array);
+            if (percentSoundTime) {
+                this.animateCurrentSound(percentSoundTime);
+                this.animateVisualyzer(fbc_array);
 
-            animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
+                animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
+            }
         };
 
-
+        /**
+         * animate current sound
+         * @param percent
+         * @returns {boolean}
+         */
         this.animateCurrentSound = function (percent) {
             if (!percent) return false;
 
-            var currentPosition = (percent / 100) * (this.properties.size * 2);
+            this.animateCurrentSoundBar(percent);
+            this.labelTimesAudio();
 
-            if (currentPosition != null) {
-                this.properties.svg.currentPosition.attr({'stroke-dashoffset': currentPosition.toFixed(1)});
-                this.labelTimesAudio();
-
-                //stop
-                if (currentPosition == 100)
-                    this.stopSound();
+            if (percent >= 100) {
+                this.stopSound();
+                this.properties.svg.currentPosition.clear();
             }
+        };
+
+
+        this.animateCurrentSoundBar = function (currentPercent) {
+            var angle = this.toDegrees((currentPercent / 100) * 360),
+                index = parseInt((currentPercent / 100) * this.properties.totalBars);
+
+            if (this.findElementByAttribute(this.properties.svg.currentPosition.node.children, 'index', index) == true) {
+                var audioBuffKey = Math.floor((this.properties.buffer.getChannelData(0).length / this.properties.totalBars) * index),
+                    height = this.properties.buffer.getChannelData(0)[audioBuffKey] < 0 ? 10 : this.properties.buffer.getChannelData(0)[audioBuffKey] * 150,
+                    x = Math.cos(angle) * 200 + this.properties.size,
+                    y = (Math.sin(angle) * 200 + this.properties.size / 2) - height / 2,
+                    properties = {fill: '#6e5d7c', x: 0, y: 0, index: index, height: height},
+                    element = this.createBarTracking(this.properties.barWidth, height, x, y, angle, properties);
+
+                if (element) {
+                    this.properties.svg.currentPosition.add(element);
+                    this.animateElement(element, 'height', 20, 0, height);
+                }
+            }
+        };
+
+        /**
+         * animate element
+         * @param element
+         * @param attribute
+         * @param time
+         * @param valueInit
+         * @param valueEnd
+         * @returns {boolean}
+         */
+        this.animateElement = function (element, attribute, time, valueInit, valueEnd) {
+            if (!element || !attribute) return false;
+
+            element
+                .attr(attribute, valueInit)
+                .animate(time)
+                .attr(attribute, valueEnd);
         };
 
         this.animateVisualyzer = function (frequency) {
@@ -88,7 +135,7 @@ var animateRequestFrame,
                             radiusX = this.maxMinNumber(0, frequency[i] / 2 - Math.floor(Math.random() * 20), frequency[i] / 2 - Math.floor(Math.random() * 20)),
                             radiusY = frequency[i] / 2;
 
-                        if(k == 0 || k == 1)
+                        if (k == 0 || k == 1)
                             this.properties.svg.visualizer.elements[k].circles[i].animate(100);
 
                         this.properties.svg.visualizer.elements[k].circles[i].attr({
@@ -108,13 +155,20 @@ var animateRequestFrame,
 
             for (var i = 0; i < this.properties.totalBars; i++) {
                 var audioBuffKey = Math.floor(eachBlock * i),
-                    heightElement = channel[audioBuffKey] < 0 ? 10 : channel[audioBuffKey] * 150,
+                    height = channel[audioBuffKey] < 0 ? 10 : channel[audioBuffKey] * 150,
                     angle = i * angleTotals;
 
                 var x = Math.cos(angle) * radius + this.properties.size,
-                    y = Math.sin(angle) * radius + this.properties.size / 2;
+                    y = (Math.sin(angle) * radius + this.properties.size / 2) - height / 2,
+                    properties = {fill: color, x: 0, y: 0, index: i, height: height},
+                    element = this.createBarTracking(this.properties.barWidth, height, x, y, angle, properties);
 
-                this.createBarTracking(this.properties.barWidth, heightElement, x, y, angle, group, i, color);
+                if (element) {
+                    element.style({'cursor': 'pointer'});
+
+                    group.add(element);
+                    this.animateElement(element, 'height', 50, 0, height);
+                }
             }
 
             return group;
@@ -124,22 +178,40 @@ var animateRequestFrame,
             var leftChannel = buffer.getChannelData(0);
 
             if (leftChannel.length > 0) {
-                if (this.properties.svg.element != null) {
+                if (this.properties.svg.element != null)
                     this.properties.svg.element.remove();
-                }
 
                 this.properties.svg.element = SVG('music').size(this.properties.size, this.properties.size);
+                this.properties.svg.controls = SVG('controls').size(this.properties.size, this.properties.size);
+
+                this.properties.svg.groupControls = this.properties.svg.controls.group();
+                this.properties.svg.groupControls.translate(this.properties.size / 2, this.properties.size / 2);
+
+                //buffer
+                this.properties.buffer = buffer;
 
                 //create circle tracking
-                this.createCircleTracking(leftChannel, leftChannel.length, '#e7e7e7', true);
+                this.createCircleTracking(leftChannel, leftChannel.length, 'rgba(0,0,0,.15)', true);
 
-                //current position
-                this.properties.svg.currentPosition = this.createCircleTracking(leftChannel, leftChannel.length, '#4e4e4f');
+                this.properties.svg.currentPosition = this.properties.svg.element.group();
+                this.properties.svg.currentPosition;
 
-                this.properties.svg.currentPosition.attr({
-                    'stroke-dasharray': this.properties.size * 2,
-                    'stroke-dashoffset': this.properties.size * 2
-                }).scale(1, -1);
+                var radius = (this.properties.size / 2),
+                    masking = this.properties.svg.element.circle(radius + 66);
+
+                this.properties.svg.currentPosition.rotate(-90, (this.properties.size / 2) + (radius / 2), (this.properties.size / 2) + (radius / 2));
+
+                masking.attr({
+                    fill: 'none',
+                    stroke: '#FFF',
+                    'stroke-width': 40,
+                    cx: this.properties.size + 1,
+                    cy: this.properties.size / 2
+                });
+
+                this.properties.svg.currentPosition.maskWith(masking);
+
+                this.playSound();
 
                 return true;
             } else {
@@ -147,22 +219,14 @@ var animateRequestFrame,
             }
         };
 
-        this.createBarTracking = function (width, height, x, y, angle, group, index, color) {
-            if (!width || !height || !angle || !group && typeof x == 'number' && typeof y == 'number') return false;
+        this.createBarTracking = function (width, height, x, y, angle, properties) {
+            if (!width || !height || !angle || !properties) return false;
 
             var rect = this.properties.svg.element.rect(width, height);
 
-            rect.attr({fill: color});
-
-            rect.attr({x: 0, y: 0, index: index})
-                .translate(x, y - height / 2)
-                .rotate(angle * (180 / Math.PI) + 90);
-
-            rect.attr('height', 0).animate(10 * index).attr('height', height);
-
-            if (typeof group == 'object') {
-                group.add(rect);
-            }
+            return rect.attr(properties)
+                .translate(x, y)
+                .rotate(this.toRadians(angle) + 90);
         };
 
         this.createCircleTracking = function (channel, total, color) {
@@ -174,7 +238,13 @@ var animateRequestFrame,
 
             group.rotate(-90, (this.properties.size / 2) + (radius / 2), (this.properties.size / 2) + (radius / 2));
 
-            masking.attr({ 'fill': 'none', 'stroke': '#FFF', 'stroke-width': 40, cx: this.properties.size + 1, cy: this.properties.size / 2});
+            masking.attr({
+                'fill': 'none',
+                'stroke': '#FFF',
+                'stroke-width': 40,
+                cx: this.properties.size + 1,
+                cy: this.properties.size / 2
+            });
 
             if (this.barCircleTrack(channel, total, group, radius - 100, color) != false) {
                 group.on('click', function (event) {
@@ -227,6 +297,18 @@ var animateRequestFrame,
             }.bind(this), false);
         };
 
+        this.findElementByAttribute = function (elements, attribute, find) {
+            var checked = true;
+
+            for (var i = 0; i < elements.length; i++) {
+                if (elements[i].getAttribute(attribute) == find) {
+                    checked = false;
+                }
+            }
+
+            return checked;
+        };
+
         /**
          * get time in hours : minutes : seconds
          * @param seconds
@@ -246,16 +328,72 @@ var animateRequestFrame,
             return totalTime + duration.minutes() + ":" + seconds;
         };
 
+        /**
+         * get time date
+         * @param date
+         * @returns {*}
+         */
+        this.getTimeDate = function (date) {
+            if (!date) return false;
+
+            var year = date.getFullYear().toString(),
+                month = (date.getMonth() + 1) < 10 ? '0' + (date.getMonth() + 1).toString() : (date.getMonth() + 1).toString(),
+                day = date.getDate().toString();
+
+            return year + '/' + month + '/' + day;
+        };
+
+        this.iconPause = function () {
+            if (this.properties.svg.groupControls == null) return false;
+
+            this.properties.svg.groupControls.clear();
+
+            this.properties.svg.iconPause = this.properties.svg.groupControls.group();
+
+            var barLeft = this.properties.svg.iconPause.path('M 21.484375 16.796875 L 32.683594 16.796875 L 32.683594 59.953125 L 21.484375 59.953125 Z M 21.484375 16.796875'),
+                barRight = this.properties.svg.iconPause.path('M 42.316406 16.796875 L 53.515625 16.796875 L 53.515625 59.953125 L 42.316406 59.953125 Z M 42.316406 16.796875');
+
+            barLeft.attr({stroke: 'none', 'fill': '#010101'});
+            barRight.attr({stroke: 'none', 'fill': '#010101'});
+
+            this.properties.svg.iconPause
+                .on('click', function () {
+                    this.stopSound();
+                }.bind(this));
+        };
+
+        this.iconPlay = function () {
+            if (this.properties.svg.groupControls == null) return false;
+
+            this.properties.svg.groupControls.clear();
+
+            this.properties.svg.iconPlay = this.properties.svg.groupControls.polygon('0,0 75,50 0,100');
+
+            this.properties.svg.iconPlay
+                .attr({fill: '#010101'})
+                .on('click', function () {
+                    this.playSound();
+                }.bind(this));
+        };
+
+        /**
+         * info audio
+         * @param file
+         */
         this.infoAudio = function (file) {
-            if (file) {
-                var name = this.properties.svg.element.text(file.name),
-                    type = this.properties.svg.element.text(file.type);
+            if (!file) return false;
 
-                name.attr({x: this.properties.size / 2, y: 10});
-                type.attr({x: this.properties.size / 2, y: 40});
+            var fileName = this.removeExtension(file.name),
+                fileName = fileName.length < 30 ? fileName : fileName.slice(0, -(file.name.length - 30)) + '...',
+                lastTime = this.getTimeDate(new Date(file.lastModified)),
+                label = this.properties.svg.element.text(function (add) {
+                    add.tspan(fileName).attr({id: 'title'}).fill('#2da6af').newLine();
+                    add.tspan(lastTime).attr({id: 'time', dy: -30}).fill('#2da6af').newLine();
+                });
 
-                this.labelTimesAudio();
-            }
+            label.attr({x: (this.properties.size / 2), y: (this.properties.size / 3) - 20, 'text-anchor': 'middle'});
+
+            this.labelTimesAudio();
         };
 
         /**
@@ -268,8 +406,20 @@ var animateRequestFrame,
             if (this.properties.svg.currentTime != null)
                 this.properties.svg.currentTime.remove();
 
-            this.properties.svg.currentTime = this.properties.svg.element.text(current + ' - ' + totalTime);
+            this.properties.svg.currentTime = this.properties.svg.element.text(function (add) {
+                add.tspan(current).fill('#9c7bb8');
+                add.tspan(' - ').fill('#9c7bb8');
+                add.tspan(totalTime).fill('#9c7bb8');
+            });
+
+            this.properties.svg.currentTime.attr({
+                id: 'current-time',
+                x: (this.properties.size / 2),
+                y: this.properties.size - 170,
+                'text-anchor': 'middle'
+            });
         };
+
 
         this.maxMinNumber = function (min, max, number) {
             if (typeof number != 'number') return false;
@@ -285,19 +435,36 @@ var animateRequestFrame,
             this.properties.analyser = this.properties.audioContext.createAnalyser();
         };
 
-        this.playSound = function () {
-            if (this.properties.sound && typeof this.properties.sound == 'object') {
+        this.removeExtension = function (filename) {
+            var lastDotPosition = filename.lastIndexOf(".");
 
-                this.properties.sound.play();
-                this.sound.connect(this.properties.analyser);
-                this.properties.analyser.connect(this.properties.audioContext.destination);
-
-                this.visualizer();
-
-                animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
+            if (lastDotPosition === -1) {
+                return filename;
+            } else {
+                return filename.substr(0, lastDotPosition);
             }
         };
 
+
+        this.playSound = function () {
+            if (!this.properties.sound && typeof this.properties.sound != 'object') return false;
+
+            this.iconPause();
+
+            this.properties.sound.play();
+            this.sound.connect(this.properties.analyser);
+            this.properties.analyser.connect(this.properties.audioContext.destination);
+
+            this.visualizer();
+
+            animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
+        };
+
+        /**
+         * select time
+         * @param index
+         * @returns {boolean}
+         */
         this.selectTime = function (index) {
             if (!index) return false;
 
@@ -306,22 +473,24 @@ var animateRequestFrame,
 
             this.properties.sound.currentTime = time.toPrecision(6);
 
-            if(percent < 100 && percent > 0) {
+            if (percent > 0 || this.properties.sound.currentTime < this.properties.sound.duration) {
                 this.playSound();
             }
         };
 
         this.stopSound = function () {
-            if (this.properties.sound && typeof this.properties.sound == 'object') {
+            if (!this.properties.sound && typeof this.properties.sound != 'object') return;
 
-                this.properties.sound.pause();
-                this.sound.disconnect(this.properties.analyser);
+            this.iconPlay();
+
+            this.properties.sound.pause();
+
+            if (this.sound.disconnect())
                 this.properties.analyser.disconnect(this.properties.audioContext.destination);
 
-                this.visualizerDestroy();
+            this.visualizerDestroy();
 
-                window.cancelAnimationFrame(animateRequestFrame);
-            }
+            window.cancelAnimationFrame(animateRequestFrame);
         };
 
         /**
@@ -347,6 +516,17 @@ var animateRequestFrame,
             return !window.requestAnimationFrame || !window.cancelAnimationFrame ? false : true;
         };
 
+        this.toDegrees = function (radians) {
+            if (!radians) return false;
+
+            return radians * (Math.PI / 180);
+        };
+
+        this.toRadians = function (degrees) {
+            if (!degrees) return false;
+
+            return degrees * (180 / Math.PI);
+        };
 
         this.visualizer = function () {
             if (this.properties.svg.visualizer.parent == null) {

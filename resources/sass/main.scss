@@ -1,0 +1,60 @@
+//@import url('https://fonts.googleapis.com/css?family=Arimo:400,700');
+
+/* --- COLORS --- */
+$black-900: #222;
+
+$font-primary: 'Arimo';
+
+/* --- MIXINS --- */
+@mixin boxsizing() {
+  box-sizing: border-box;
+  display: inline-block;
+  position: relative;
+}
+
+@mixin font($font: 'Arimo', $size: 12px, $weight: 400, $color: #222) {
+  color: $color;
+  font-family: $font, sans-serif;
+  font-size: $size;
+  font-weight: $weight;
+}
+
+
+#music {
+  @include boxsizing;
+  text-align: center;
+  top: 0;
+  width: 100%;
+
+  svg {
+    @include boxsizing;
+
+    text {
+      @include boxsizing;
+      @include font($font-primary, 14px, 400, #2da6af);
+
+      #title {
+        @include font($font-primary, 20px, 400, #2da6af);
+      }
+
+      #time {
+        @include font($font-primary, 11px, 400, #2da6af);
+      }
+
+      #current-time {
+        tspan {
+          @include font($font-primary, 17px, 400, #2da6af);
+        }
+      }
+    }
+  }
+}
+
+#controls {
+  @include boxsizing;
+  left: 0;
+  right: 0;
+  position: absolute;
+  text-align: center;
+  top: 0;
+}
