@@ -1,8 +1,15 @@
 'use strict';
 
+/**
+ * animate & audio object
+ */
 var animateRequestFrame,
     audioAPI = function () {
 
+        /**
+         * [properties description]
+         * @type {Object}
+         */
         this.properties = {
             analyser: undefined,
             audioContext: undefined,
@@ -30,6 +37,10 @@ var animateRequestFrame,
             totalBars: 500
         };
 
+        /**
+         * [sound description]
+         * @type {[type]}
+         */
         this.sound = undefined;
 
         /**
@@ -41,7 +52,7 @@ var animateRequestFrame,
 
                 this.eventsBind();
             } else {
-                console.log('Not Support AnimateFrame');
+                alert('Not Support AnimateFrame or AudioContext!');
             }
         };
 
@@ -73,7 +84,7 @@ var animateRequestFrame,
             this.animateCurrentSoundBar(percent);
             this.labelTimesAudio();
 
-            if (percent >= 100) {
+            if (percent == 100) {
                 this.stopSound();
                 this.properties.svg.currentPosition.clear();
             }
@@ -100,13 +111,13 @@ var animateRequestFrame,
         };
 
         /**
-         * animate element
-         * @param element
-         * @param attribute
-         * @param time
-         * @param valueInit
-         * @param valueEnd
-         * @returns {boolean}
+         * [animateElement description]
+         * @param  {[type]} element   [description]
+         * @param  {[type]} attribute [description]
+         * @param  {[type]} time      [description]
+         * @param  {[type]} valueInit [description]
+         * @param  {[type]} valueEnd  [description]
+         * @return {[type]}           [description]
          */
         this.animateElement = function (element, attribute, time, valueInit, valueEnd) {
             if (!element || !attribute) return false;
@@ -121,11 +132,11 @@ var animateRequestFrame,
             var totalItems = Math.PI * 2 / this.properties.svg.visualizerTotalBars;
 
             for (var k = 0; k < this.properties.svg.visualizer.elements.length; k++) {
-                if (k == 0) this.properties.svg.visualizer.elements[k].element.rotate(3);
-                if (k == 1) this.properties.svg.visualizer.elements[k].element.rotate(-3);
+                if (k < (this.properties.svg.visualizer.elements.length - 2))
+                    this.properties.svg.visualizer.elements[k].element.rotate(1 * this.maxMinRandom(-1, 1));
 
                 for (var i = 0; i < this.properties.svg.visualizer.elements[k].circles.length; i++) {
-                    if (i != 0) {
+                    if (i > 0) {
                         var angle = i * totalItems,
                             cx = Math.sin(angle) * 110,
                             cy = Math.cos(angle) * 110;
@@ -135,7 +146,7 @@ var animateRequestFrame,
                             radiusX = this.maxMinNumber(0, frequency[i] / 2 - Math.floor(Math.random() * 20), frequency[i] / 2 - Math.floor(Math.random() * 20)),
                             radiusY = frequency[i] / 2;
 
-                        if (k == 0 || k == 1)
+                        if (k < (this.properties.svg.visualizer.elements.length - 2))
                             this.properties.svg.visualizer.elements[k].circles[i].animate(100);
 
                         this.properties.svg.visualizer.elements[k].circles[i].attr({
@@ -240,8 +251,6 @@ var animateRequestFrame,
                 group = this.properties.svg.controls.group(),
                 masking = this.properties.svg.controls.circle(radius + 66);
 
-            group.rotate(-90, (this.properties.size / 2) + (radius / 2), (this.properties.size / 2) + (radius / 2));
-
             masking.attr({
                 'fill': 'none',
                 'stroke': '#FFF',
@@ -250,19 +259,19 @@ var animateRequestFrame,
                 cy: this.properties.size / 2
             });
 
+            group.rotate(-90, (this.properties.size / 2) + (radius / 2), (this.properties.size / 2) + (radius / 2));
+            group.maskWith(masking);
+
             if (this.barCircleTrack(channel, total, group, radius - 100, color) != false) {
-
                 group.on('click', function (event) {
-                    console.log('click elemento para adelantar');
-
                     if (typeof event.target.getAttribute('index') != 'number') {
                         this.selectTime(event.target.getAttribute('index'));
                     }
                 }, this);
 
-                group.maskWith(masking);
-
                 return masking;
+            } else {
+                return false;
             }
         };
 
@@ -292,6 +301,10 @@ var animateRequestFrame,
             return URL.createObjectURL(file.files[0]);
         };
 
+        /**
+         * [eventsBind description]
+         * @return {[type]} [description]
+         */
         this.eventsBind = function () {
             //watch file
             document.getElementById('file').addEventListener('change', function (event) {
@@ -305,6 +318,13 @@ var animateRequestFrame,
             });
         };
 
+        /**
+         * [findElementByAttribute description]
+         * @param  {[type]} elements  [description]
+         * @param  {[type]} attribute [description]
+         * @param  {[type]} find      [description]
+         * @return {[type]}           [description]
+         */
         this.findElementByAttribute = function (elements, attribute, find) {
             var checked = true;
 
@@ -430,7 +450,23 @@ var animateRequestFrame,
             });
         };
 
+        /**
+         * [maxMinRandom description]
+         * @param  {[type]} min [description]
+         * @param  {[type]} max [description]
+         * @return {[type]}     [description]
+         */
+        this.maxMinRandom = function (min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        };
 
+        /**
+         * [maxMinNumber description]
+         * @param  {[type]} min    [description]
+         * @param  {[type]} max    [description]
+         * @param  {[type]} number [description]
+         * @return {[type]}        [description]
+         */
         this.maxMinNumber = function (min, max, number) {
             if (typeof number != 'number') return false;
 
@@ -456,13 +492,20 @@ var animateRequestFrame,
             }
         };
 
-        this.removeExtension = function (filename) {
-            var lastDotPosition = filename.lastIndexOf(".");
+        /**
+         * [removeExtension description]
+         * @param  {[type]} fileName [description]
+         * @return {[type]}          [description]
+         */
+        this.removeExtension = function (fileName) {
+            if (typeof fileName == 'string') {
+                var lastDotPosition = fileName.lastIndexOf(".");
 
-            if (lastDotPosition === -1) {
-                return filename;
-            } else {
-                return filename.substr(0, lastDotPosition);
+                if (lastDotPosition === -1) {
+                    return fileName;
+                } else {
+                    return fileName.substr(0, lastDotPosition);
+                }
             }
         };
 
@@ -482,9 +525,9 @@ var animateRequestFrame,
         };
 
         /**
-         * select time
-         * @param index
-         * @returns {boolean}
+         * [selectTime description]
+         * @param  {[type]} index [description]
+         * @return {[type]}       [description]
          */
         this.selectTime = function (index) {
             if (!index) return false;
@@ -492,10 +535,12 @@ var animateRequestFrame,
             var percent = (index / this.properties.totalBars) * 100,
                 time = (percent / 100) * this.properties.sound.duration;
 
-            this.properties.sound.currentTime = time.toPrecision(6);
+            if(typeof time == 'number') {
+                this.properties.sound.currentTime = time.toPrecision(10);
 
-            if (percent > 0 || this.properties.sound.currentTime < this.properties.sound.duration) {
-                this.playSound();
+                if (percent > 0 || this.properties.sound.currentTime < this.properties.sound.duration) {
+                    this.playSound();
+                }
             }
         };
 
@@ -515,18 +560,18 @@ var animateRequestFrame,
         };
 
         /**
-         * support audio context
-         * @returns {boolean}
+         * [supportAudioContext description]
+         * @return {[type]} [description]
          */
         this.supportAudioContext = function () {
-            window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.msAudioContext || false;
+            window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || false;
 
-            return !window.AudioContext ? false : true;
+            return window.AudioContext;
         };
 
         /**
-         * support request animate
-         * @returns {boolean}
+         * [supportRequestAnimateFrame description]
+         * @return {[type]} [description]
          */
         this.supportRequestAnimateFrame = function () {
             window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame
@@ -534,21 +579,35 @@ var animateRequestFrame,
 
             window.cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame;
 
-            return !window.requestAnimationFrame || !window.cancelAnimationFrame ? false : true;
+            return !window.requestAnimationFrame;
         };
 
+        /**
+         * [toDegrees description]
+         * @param  {[type]} radians [description]
+         * @return {[type]}         [description]
+         */
         this.toDegrees = function (radians) {
             if (!radians) return false;
 
             return radians * (Math.PI / 180);
         };
 
+        /**
+         * [toRadians description]
+         * @param  {[type]} degrees [description]
+         * @return {[type]}         [description]
+         */
         this.toRadians = function (degrees) {
             if (!degrees) return false;
 
             return degrees * (180 / Math.PI);
         };
 
+        /**
+         * [visualizer description]
+         * @return {[type]} [description]
+         */
         this.visualizer = function () {
             if (this.properties.svg.visualizer.parent == null) {
                 var mask = this.properties.svg.element.circle(515);
@@ -611,6 +670,10 @@ var animateRequestFrame,
             }
         };
 
+        /**
+         * [visualizerDestroy description]
+         * @return {[type]} [description]
+         */
         this.visualizerDestroy = function () {
             if (this.properties.svg.visualizer.parent != null) {
                 this.properties.svg.visualizer.parent.remove();
@@ -621,6 +684,3 @@ var animateRequestFrame,
             }
         };
     };
-
-var app = new audioAPI();
-app.init();

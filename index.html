@@ -1,35 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>JavaScript Audio API</title>
+    <title>Web Audio API</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+	<!-- css -->
     <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
 
-<div class="info">
+<div class="container info">
 	<h1>This is an <span>Experiment</span> with Web Audio API v0.1</h1>
 	<p>
-		By Julian Ibarra, visit on <a href="mailto:yeissonibarra@gmail.com">Github</a>
+		By Julian Ibarra, visit on <a href="">Github</a>
 	</p>
 
 	<!-- link WEB API -->
-	<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API">Web Audio API more information</a>
+	<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API" target="_blank">Web Audio API more information</a>
 </div>
 
 <!-- trigger style -->
-<button id="btn-file" class="btn">SELECT FILE</button>
+<button id="btn-file" class="btn">select file</button>
 
-<!-- input -->
-<input id="file" type="file" accept="audio/*" style="display: none;" value="">
+<!-- file -->
+<input id="file" type="file" accept="audio/*" value="">
 
-<!-- music -->
-<div id="music"></div>
+<!-- container -->
+<div class="container">
+	<!-- music -->
+	<div id="music"></div>
 
-<!-- controls -->
-<div id="controls"></div>
+	<!-- controls -->
+	<div id="controls"></div>
+</div>
 
-<!-- effect -->
+<!-- effect gooey -->
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
     <defs>
         <filter id="fancy-goo">
@@ -40,7 +45,15 @@
     </defs>
 </svg>
 
-
+<!-- script -->
 <script src="js/app.js"></script>
+<script>
+	/**
+	 * [app description]
+	 * @type {audioAPI}
+	 */
+	var app = new audioAPI();
+	app.init();
+</script>
 </body>
 </html>

@@ -2,6 +2,11 @@
 @import url('https://fonts.googleapis.com/css?family=Open+Sans:300,400,600');
 
 
+/* --- FONTS --- */
+$font-primary: 'Arimo';
+$font-secundary: 'Open Sans';
+
+
 /* --- COLORS --- */
 $black-900: #222;
 $black-800: #676;
@@ -10,8 +15,6 @@ $blue-900: #4d4dff;
 
 $white-900: #FFF;
 
-$font-primary: 'Arimo';
-$font-secundary: 'Open Sans';
 
 /* --- MIXINS --- */
 @mixin boxsizing() {
@@ -29,16 +32,85 @@ $font-secundary: 'Open Sans';
 
 
 body {
+  @include boxsizing;
   margin: 0;
+  width: 100%;
 }
 
+/* --- CONTROLS --- */
+.btn {
+  @include boxsizing();
+  @include font($font-secundary, 13px, 300, $black-800);
+  
+  background-color: $white-900;
+  border: 1px solid rgba($black-800, .1);
+  border-radius: 25px;
+  box-shadow: 0 0 4px 0 rgba($black-900, .1);
+  cursor: pointer;
+  display: block;
+  letter-spacing: 2px;
+  margin: 30px auto 0;
+  outline: none;
+  padding: 15px 25px;
+  text-transform: uppercase;
+  z-index: 3;
+}
+
+input {
+  display: none;
+}
+
+
+/* --- MAIN --- */
+.container {
+  @include boxsizing();
+  display: block;
+  margin: 0 auto;
+  max-width: 900px;
+  width: 100%;
+
+  &.info {
+    padding: 10px 15px 0;
+
+    h1 {
+      @include boxsizing();
+      @include font($font-secundary, 21px, 300, $black-900);
+      margin: 0;
+      letter-spacing: 1px;
+
+      span {
+        @include font($font-secundary, 24px, 400, $black-900);
+        letter-spacing: -1px;
+      }
+    }
+
+    p {
+      @include boxsizing();
+      @include font($font-secundary, 14px, 300, $black-900);
+      margin: 0;
+      width: 100%;
+
+      a {
+        font-size: 16px;
+        padding: 0;
+      }
+    }
+
+    a {
+      @include boxsizing();
+      @include font($font-secundary, 13px, 400, $blue-900);
+      padding: 10px 0 0;
+      text-decoration: none;
+    }
+  }
+}
 
 #music {
   @include boxsizing;
   left: 0;
   position: absolute;
   text-align: center;
-  top: 170px;
+  top: 0;
   width: 100%;
   z-index: 1;
 
@@ -77,63 +149,6 @@ body {
   right: 0;
   position: absolute;
   text-align: center;
-  top: 170px;
+  top: 0;
   z-index: 2;
-}
-
-.btn {
-  @include boxsizing();
-  @include font($font-primary, 13px, 400, $black-800);
-  
-  background-color: $white-900;
-  border: 1px solid rgba($black-800, .1);
-  border-radius: 25px;
-  box-shadow: 0 0 4px 0 rgba($black-900, .1);
-  cursor: pointer;
-  display: block;
-  letter-spacing: 2px;
-  margin: 30px auto 0;
-  outline: none;
-  padding: 15px 25px;
-  z-index: 3;
-}
-
-.info {
-  @include boxsizing();
-  display: block;
-  margin: 0 auto;
-  max-width: 900px;
-  padding: 20px 15px 0;
-  width: 100%;
-
-  h1 {
-    @include boxsizing();
-    @include font($font-secundary, 21px, 300, $black-900);
-    margin: 0;
-    letter-spacing: 1px;
-
-    span {
-      @include font($font-secundary, 30px, 400, $black-900);
-      letter-spacing: -1px;
-    }
-  }
-
-  p {
-    @include boxsizing();
-    @include font($font-secundary, 14px, 300, $black-900);
-    margin: 0;
-    width: 100%;
-
-    a {
-      font-size: 16px;
-      padding: 0;
-    }
-  }
-
-  a {
-    @include boxsizing();
-    @include font($font-secundary, 13px, 400, $blue-900);
-    padding: 20px 0 0;
-    text-decoration: none;
-  }
 }
