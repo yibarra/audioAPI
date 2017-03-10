@@ -27,7 +27,7 @@ var animateRequestFrame,
                 visualizerTotalBars: 28
             },
             size: 600,
-            totalBars: 386
+            totalBars: 500
         };
 
         this.sound = undefined;
@@ -182,10 +182,14 @@ var animateRequestFrame,
                     this.properties.svg.element.remove();
 
                 this.properties.svg.element = SVG('music').size(this.properties.size, this.properties.size);
+
                 this.properties.svg.controls = SVG('controls').size(this.properties.size, this.properties.size);
+                var circleBlack = this.properties.svg.controls.circle(40);
+                circleBlack.radius(40).attr({fill: this.properties.svg.visualizer.colors[this.properties.svg.visualizer.colors.length - 1], cx: (this.properties.size / 2), cy: (this.properties.size / 2)});
 
                 this.properties.svg.groupControls = this.properties.svg.controls.group();
-                this.properties.svg.groupControls.translate(this.properties.size / 2, this.properties.size / 2);
+                this.properties.svg.groupControls.translate(this.properties.size / 2 - 20, this.properties.size / 2 - 20);
+
 
                 //buffer
                 this.properties.buffer = buffer;
@@ -233,8 +237,8 @@ var animateRequestFrame,
             if (!channel || !total) return false;
 
             var radius = (this.properties.size / 2),
-                group = this.properties.svg.element.group(),
-                masking = this.properties.svg.element.circle(radius + 66);
+                group = this.properties.svg.controls.group(),
+                masking = this.properties.svg.controls.circle(radius + 66);
 
             group.rotate(-90, (this.properties.size / 2) + (radius / 2), (this.properties.size / 2) + (radius / 2));
 
@@ -247,7 +251,10 @@ var animateRequestFrame,
             });
 
             if (this.barCircleTrack(channel, total, group, radius - 100, color) != false) {
+
                 group.on('click', function (event) {
+                    console.log('click elemento para adelantar');
+
                     if (typeof event.target.getAttribute('index') != 'number') {
                         this.selectTime(event.target.getAttribute('index'));
                     }
@@ -260,6 +267,8 @@ var animateRequestFrame,
         };
 
         this.decodeAudioData = function (file) {
+            if(!file) return false;
+
             var fileReader = new FileReader;
 
             fileReader.onload = function (event) {
@@ -284,17 +293,16 @@ var animateRequestFrame,
         };
 
         this.eventsBind = function () {
-            document.getElementById('play').addEventListener('click', function () {
-                this.playSound();
-            }.bind(this), false);
-
-            document.getElementById('stop').addEventListener('click', function () {
-                this.stopSound();
-            }.bind(this), false);
-
-            document.querySelector('input').addEventListener('change', function (event) {
+            //watch file
+            document.getElementById('file').addEventListener('change', function (event) {
                 this.loadSound(event);
             }.bind(this), false);
+
+            //btn click
+            document.getElementById('btn-file').addEventListener('click', function (event) {
+                var file = document.getElementById('file');
+                file.click();
+            });
         };
 
         this.findElementByAttribute = function (elements, attribute, find) {
@@ -350,13 +358,14 @@ var animateRequestFrame,
 
             this.properties.svg.iconPause = this.properties.svg.groupControls.group();
 
-            var barLeft = this.properties.svg.iconPause.path('M 21.484375 16.796875 L 32.683594 16.796875 L 32.683594 59.953125 L 21.484375 59.953125 Z M 21.484375 16.796875'),
-                barRight = this.properties.svg.iconPause.path('M 42.316406 16.796875 L 53.515625 16.796875 L 53.515625 59.953125 L 42.316406 59.953125 Z M 42.316406 16.796875');
+            var barLeft = this.properties.svg.iconPause.path('M12.4,9.9h4.3v20.1h-4.3C12.4,30.1,12.4,9.9,12.4,9.9z'),
+                barRight = this.properties.svg.iconPause.path('M23.3,9.9h4.3v20.1h-4.3V9.9z');
 
-            barLeft.attr({stroke: 'none', 'fill': '#010101'});
-            barRight.attr({stroke: 'none', 'fill': '#010101'});
+            barLeft.attr({stroke: 'none', 'fill': '#FFF'});
+            barRight.attr({stroke: 'none', 'fill': '#FFF'});
 
             this.properties.svg.iconPause
+                .style('cursor', 'pointer')
                 .on('click', function () {
                     this.stopSound();
                 }.bind(this));
@@ -367,10 +376,11 @@ var animateRequestFrame,
 
             this.properties.svg.groupControls.clear();
 
-            this.properties.svg.iconPlay = this.properties.svg.groupControls.polygon('0,0 75,50 0,100');
+            this.properties.svg.iconPlay = this.properties.svg.groupControls.polygon('16.5,10.3 27.6,20.2 16.5,30.1');
 
             this.properties.svg.iconPlay
-                .attr({fill: '#010101'})
+                .attr({fill: '#FFF'})
+                .style('cursor', 'pointer')
                 .on('click', function () {
                     this.playSound();
                 }.bind(this));
@@ -387,8 +397,8 @@ var animateRequestFrame,
                 fileName = fileName.length < 30 ? fileName : fileName.slice(0, -(file.name.length - 30)) + '...',
                 lastTime = this.getTimeDate(new Date(file.lastModified)),
                 label = this.properties.svg.element.text(function (add) {
-                    add.tspan(fileName).attr({id: 'title'}).fill('#2da6af').newLine();
-                    add.tspan(lastTime).attr({id: 'time', dy: -30}).fill('#2da6af').newLine();
+                    add.tspan(fileName).attr({id: 'title'}).fill('#333').newLine();
+                    add.tspan(lastTime).attr({id: 'time', dy: -30}).fill('#676').newLine();
                 });
 
             label.attr({x: (this.properties.size / 2), y: (this.properties.size / 3) - 20, 'text-anchor': 'middle'});
@@ -407,9 +417,9 @@ var animateRequestFrame,
                 this.properties.svg.currentTime.remove();
 
             this.properties.svg.currentTime = this.properties.svg.element.text(function (add) {
-                add.tspan(current).fill('#9c7bb8');
-                add.tspan(' - ').fill('#9c7bb8');
-                add.tspan(totalTime).fill('#9c7bb8');
+                add.tspan(current).fill('#333');
+                add.tspan(' - ').fill('#333');
+                add.tspan(totalTime).fill('#333');
             });
 
             this.properties.svg.currentTime.attr({
@@ -428,11 +438,22 @@ var animateRequestFrame,
         };
 
         this.loadSound = function (event) {
-            this.properties.sound = new Audio();
-            this.properties.sound.src = this.decodeAudioData(event.target);
+            if(event.target && event.target.files[0] != undefined) {
+                if(this.properties.sound) {
+                    this.stopSound();
 
-            this.sound = this.properties.audioContext.createMediaElementSource(this.properties.sound);
-            this.properties.analyser = this.properties.audioContext.createAnalyser();
+                    this.properties.svg.controls.remove();
+                    this.properties.sound = undefined;
+                }
+
+                this.properties.sound = new Audio();
+                this.properties.sound.src = this.decodeAudioData(event.target);
+
+                this.sound = this.properties.audioContext.createMediaElementSource(this.properties.sound);
+                this.properties.analyser = this.properties.audioContext.createAnalyser();
+            } else {
+                console.log('Error');
+            }
         };
 
         this.removeExtension = function (filename) {
@@ -587,8 +608,6 @@ var animateRequestFrame,
 
                     this.properties.svg.visualizer.elements.push(element);
                 }
-            } else {
-                this.visualizerDestroy();
             }
         };
 

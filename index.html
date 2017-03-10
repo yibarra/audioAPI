@@ -7,14 +7,29 @@
 </head>
 <body>
 
-<input type="file" accept="audio/*">
+<div class="info">
+	<h1>This is an <span>Experiment</span> with Web Audio API v0.1</h1>
+	<p>
+		By Julian Ibarra, visit on <a href="mailto:yeissonibarra@gmail.com">Github</a>
+	</p>
 
-<button id="play">play</button>
-<button id="stop">stop</button>
+	<!-- link WEB API -->
+	<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API">Web Audio API more information</a>
+</div>
 
+<!-- trigger style -->
+<button id="btn-file" class="btn">SELECT FILE</button>
+
+<!-- input -->
+<input id="file" type="file" accept="audio/*" style="display: none;" value="">
+
+<!-- music -->
 <div id="music"></div>
+
+<!-- controls -->
 <div id="controls"></div>
 
+<!-- effect -->
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
     <defs>
         <filter id="fancy-goo">
