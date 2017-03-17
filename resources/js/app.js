@@ -28,9 +28,8 @@ var animateRequestFrame,
                 visualizer: {
                     parent: null,
                     elements: [],
-                    colors: ['#b3eeed', '#88ddc5', '#6d958f', '#2da6af']
+                    colors: null
                 },
-                visualizerCircles: [],
                 visualizerTotalBars: 28
             },
             size: 600,
@@ -46,9 +45,11 @@ var animateRequestFrame,
         /**
          * init
          */
-        this.init = function () {
+        this.init = function (colors) {
             if (this.supportRequestAnimateFrame() || this.supportAudioContext()) {
                 this.properties.audioContext = new AudioContext();
+
+                this.properties.svg.visualizer.colors = colors instanceof Array ? colors : ['#b3eeed', '#88ddc5', '#6d958f', '#2da6af'];
 
                 this.eventsBind();
             } else {
@@ -65,11 +66,15 @@ var animateRequestFrame,
 
             var percentSoundTime = (this.properties.sound.currentTime / this.properties.sound.duration) * 100;
 
-            if (percentSoundTime) {
-                this.animateCurrentSound(percentSoundTime);
-                this.animateVisualyzer(fbc_array);
+            if (percentSoundTime < 100) {
+                this.animateCurrentSound(fbc_array, percentSoundTime);
 
-                animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
+                animateRequestFrame = window.requestAnimationFrame(this.animateFrame.bind(this));
+            } else if(percentSoundTime == 100) {
+                window.cancelAnimationFrame(animateRequestFrame);
+
+                this.stopSound();
+                this.animateClearCurrentSoundBars();
             }
         };
 
@@ -78,16 +83,12 @@ var animateRequestFrame,
          * @param percent
          * @returns {boolean}
          */
-        this.animateCurrentSound = function (percent) {
+        this.animateCurrentSound = function (fbc_array, percent) {
             if (!percent) return false;
 
+            this.animateVisualyzer(fbc_array);
             this.animateCurrentSoundBar(percent);
             this.labelTimesAudio();
-
-            if (percent == 100) {
-                this.stopSound();
-                this.properties.svg.currentPosition.clear();
-            }
         };
 
 
@@ -111,6 +112,22 @@ var animateRequestFrame,
         };
 
         /**
+         * [animateClearCurrentSoundBars description]
+         * @return {[type]} [description]
+         */
+        this.animateClearCurrentSoundBars = function () {
+            if(this.properties.svg.currentPosition.node.children.length > 0) {
+                this.properties.svg.currentPosition.each(function(i, element) {
+                    this.animate(400).attr({'height': 0});
+                });
+                
+                setTimeout(function() {
+                    this.properties.svg.currentPosition.clear();
+                }.bind(this), 500);
+            }
+        };
+
+        /**
          * [animateElement description]
          * @param  {[type]} element   [description]
          * @param  {[type]} attribute [description]
@@ -122,10 +139,7 @@ var animateRequestFrame,
         this.animateElement = function (element, attribute, time, valueInit, valueEnd) {
             if (!element || !attribute) return false;
 
-            element
-                .attr(attribute, valueInit)
-                .animate(time)
-                .attr(attribute, valueEnd);
+            element.attr(attribute, valueInit).animate(time).attr(attribute, valueEnd);
         };
 
         this.animateVisualyzer = function (frequency) {
@@ -398,9 +412,7 @@ var animateRequestFrame,
 
             this.properties.svg.iconPlay = this.properties.svg.groupControls.polygon('16.5,10.3 27.6,20.2 16.5,30.1');
 
-            this.properties.svg.iconPlay
-                .attr({fill: '#FFF'})
-                .style('cursor', 'pointer')
+            this.properties.svg.iconPlay.attr({fill: '#FFF'}).style('cursor', 'pointer')
                 .on('click', function () {
                     this.playSound();
                 }.bind(this));
@@ -414,9 +426,9 @@ var animateRequestFrame,
             if (!file) return false;
 
             var fileName = this.removeExtension(file.name),
-                fileName = fileName.length < 30 ? fileName : fileName.slice(0, -(file.name.length - 30)) + '...',
-                lastTime = this.getTimeDate(new Date(file.lastModified)),
-                label = this.properties.svg.element.text(function (add) {
+                lastTime = this.getTimeDate(new Date(file.lastModified));
+
+            var label = this.properties.svg.element.text(function (add) {
                     add.tspan(fileName).attr({id: 'title'}).fill('#333').newLine();
                     add.tspan(lastTime).attr({id: 'time', dy: -30}).fill('#676').newLine();
                 });
@@ -450,29 +462,6 @@ var animateRequestFrame,
             });
         };
 
-        /**
-         * [maxMinRandom description]
-         * @param  {[type]} min [description]
-         * @param  {[type]} max [description]
-         * @return {[type]}     [description]
-         */
-        this.maxMinRandom = function (min, max) {
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-        };
-
-        /**
-         * [maxMinNumber description]
-         * @param  {[type]} min    [description]
-         * @param  {[type]} max    [description]
-         * @param  {[type]} number [description]
-         * @return {[type]}        [description]
-         */
-        this.maxMinNumber = function (min, max, number) {
-            if (typeof number != 'number') return false;
-
-            return Math.max(min, Math.min(number, max));
-        };
-
         this.loadSound = function (event) {
             if(event.target && event.target.files[0] != undefined) {
                 if(this.properties.sound) {
@@ -493,19 +482,41 @@ var animateRequestFrame,
         };
 
         /**
+         * [maxMinRandom description]
+         * @param  {[type]} min [description]
+         * @param  {[type]} max [description]
+         * @return {[type]}     [description]
+         */
+        this.maxMinRandom = function (min, max) {
+            if(typeof min != 'number' || typeof max != 'number') return false;
+
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        };
+
+        /**
+         * [maxMinNumber description]
+         * @param  {[type]} min    [description]
+         * @param  {[type]} max    [description]
+         * @param  {[type]} number [description]
+         * @return {[type]}        [description]
+         */
+        this.maxMinNumber = function (min, max, number) {
+            if (typeof number != 'number' || typeof min != 'number' || typeof max != 'number') return false;
+
+            return Math.max(min, Math.min(number, max));
+        };
+
+        /**
          * [removeExtension description]
          * @param  {[type]} fileName [description]
          * @return {[type]}          [description]
          */
         this.removeExtension = function (fileName) {
             if (typeof fileName == 'string') {
-                var lastDotPosition = fileName.lastIndexOf(".");
+                var lastDotPosition = fileName.lastIndexOf("."),
+                    name = (lastDotPosition === -1) ? fileName : fileName.substr(0, lastDotPosition);
 
-                if (lastDotPosition === -1) {
-                    return fileName;
-                } else {
-                    return fileName.substr(0, lastDotPosition);
-                }
+                return name.length < 30 ? name : name.slice(0, -(name.length - 30)) + '...';
             }
         };
 
@@ -521,7 +532,7 @@ var animateRequestFrame,
 
             this.visualizer();
 
-            animateRequestFrame = requestAnimationFrame(this.animateFrame.bind(this));
+            animateRequestFrame = window.requestAnimationFrame(this.animateFrame.bind(this));
         };
 
         /**
@@ -530,7 +541,7 @@ var animateRequestFrame,
          * @return {[type]}       [description]
          */
         this.selectTime = function (index) {
-            if (!index) return false;
+            if (!index || isNaN(parseInt(index))) return false;
 
             var percent = (index / this.properties.totalBars) * 100,
                 time = (percent / 100) * this.properties.sound.duration;
@@ -551,12 +562,10 @@ var animateRequestFrame,
 
             this.properties.sound.pause();
 
-            if (this.sound.disconnect())
+            if (this.sound.disconnect()) {
                 this.properties.analyser.disconnect(this.properties.audioContext.destination);
-
-            this.visualizerDestroy();
-
-            window.cancelAnimationFrame(animateRequestFrame);
+                this.visualizerDestroy();
+            }
         };
 
         /**
@@ -564,9 +573,7 @@ var animateRequestFrame,
          * @return {[type]} [description]
          */
         this.supportAudioContext = function () {
-            window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || false;
-
-            return window.AudioContext;
+            return window.AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || false;
         };
 
         /**
@@ -579,7 +586,7 @@ var animateRequestFrame,
 
             window.cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame;
 
-            return !window.requestAnimationFrame;
+            return window.requestAnimationFrame;
         };
 
         /**
@@ -588,7 +595,7 @@ var animateRequestFrame,
          * @return {[type]}         [description]
          */
         this.toDegrees = function (radians) {
-            if (!radians) return false;
+            if (!radians || typeof radians != 'number') return false;
 
             return radians * (Math.PI / 180);
         };
@@ -599,7 +606,7 @@ var animateRequestFrame,
          * @return {[type]}         [description]
          */
         this.toRadians = function (degrees) {
-            if (!degrees) return false;
+            if (!degrees || typeof degrees != 'number') return false;
 
             return degrees * (180 / Math.PI);
         };
@@ -676,11 +683,10 @@ var animateRequestFrame,
          */
         this.visualizerDestroy = function () {
             if (this.properties.svg.visualizer.parent != null) {
-                this.properties.svg.visualizer.parent.remove();
-
-                this.properties.svg.visualizer.parent = null;
                 this.properties.svg.visualizer.elements = [];
-                this.properties.svg.visualizerCircles = [];
+
+                this.properties.svg.visualizer.parent.clear();
+                this.properties.svg.visualizer.parent = null;
             }
         };
     };
